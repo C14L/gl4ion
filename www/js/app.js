@@ -10,10 +10,12 @@ var app = angular.module( 'graniteland', ['ionic'] );
 // --- run ---------------------------------------------------------------------
 
 app.run(
-    [ '$rootScope', '$ionicPlatform', 'DownloadFromServer',
-        function( $rootScope, $ionicPlatform, DownloadFromServer ){
+    [ '$rootScope', '$ionicPlatform', '$http',
+        function( $rootScope, $ionicPlatform, $http ){
+    console.log('Starting up...');
 
     $ionicPlatform.ready( function() {
+        console.log('>> $ionicPlatform is ready!');
         // Hide the accessory bar by default (remove this to show the accessory bar above the keyboard
         // for form inputs)
         if ( window.cordova && window.cordova.plugins.Keyboard ) {
@@ -24,28 +26,9 @@ app.run(
         }
     });
 
-    // Check if the stone list is in localStorage. If not, then show a modal to
-    // inform the user that the app is downloading data.
-    console.log('app.run: tryng to find stonelist in localStorage...');
-    var stonelist = window.localStorage.getItem('graniteland.stonelist');
-    if (stonelist == null){
-        // Load stone data from server into $rootScope.stones and store 
-        // permanently in localStorage.
-        console.log('app.run: not found in localStorage! attempting to load from server...');
-        DownloadFromServer.getStonelist().then( function( data ) {
-            console.log('app.run: received data from server! safe to localStorage and rootScope.');
-            window.localStorage.setItem('graniteland.stonelist', angular.toJson(data));
-            $rootScope.stonelist = data;
-        } );
-
-    } else {
-        console.log('app.run: success! stonelist loaded from localStorage.');
-        $rootScope.stonelist = angular.fromJson(stonelist);
-    }
-
     // Remember IDs of stones the user likes.
-    $rootScope.favlist = [];
-
+    $rootScope.favlist = angular.fromJson( 
+        window.localStorage.getItem( 'graniteland.favlist' ) || '[]' );
 }]);
 
 // --- global values -----------------------------------------------------------
@@ -58,62 +41,112 @@ app.value( 'settings', {
 // --- controllers -------------------------------------------------------------
 
 app.controller( 'StonelistController',
-    [ '$scope', 'Stonelist', 'settings',
-        function( $scope, Stonelist, settings ){
-            console.log('StonelistController: beginning to render stonelist...');
-            Stonelist.filter({}).then( function( data ) {
-                console.log('StonelistController: stonelist filter finished, hand data to template...');
-                $scope.stonelist = data;
-                $scope.favlist = angular.fromJson(window.localStorage.getItem('graniteland.favlist')||'[]');
-                console.log('StonelistController: done.');
+    [ '$scope', '$timeout', '$ionicModal', 'Stonelist', 'settings',
+        function( $scope, $timeout, $ionicModal, Stonelist, settings ){
+
+            $scope.stonelist = Stonelist.filter();
+            $scope.favlist = angular.fromJson( window.localStorage.getItem( 'graniteland.favlist' ) || '[]' );
+
+            console.log('>> StonelistController loaded stonelist with "' + $scope.stonelist.length + '" items.');
+
+            // --- favlist -----------------------------------------------------
+
+            $scope.getFavlistIndex = function(item){
+                // Returns the index number of an item in the favlist, or 
+                // returns false if the item is not in the favlist.
+                for ( i=0; i<$scope.favlist.length; i++ ){
+                    if ( $scope.favlist[i]['id'] == item['id'] ) return i;
+                }
+                return (-1);
+            }
+
+
+            $scope.addOrRemoveItemOnFavlist = function(){
+                console.log('>> addOrRemoveItemOnFavlist: ' + this.item['name']);
+                console.log(this);
+
+                if ( this.item.isFav ){
+                    console.log('>>>> REMOVE ITEM...');
+                    // Remove item from favlist.
+                    this.item.isFav = false;
+                    
+                    // FIXME: When clicked te [x] button on the favlist, this
+                    // does not set isFav on the same item in the stonelist, 
+                    // because it refers to "this" elem on the favlist. We need
+                    // to find the item on stonelist and remove it there, same
+                    // as below we cycle through favlist when we remove the item
+                    // from a stonelist click.
+
+                    var i = $scope.getFavlistIndex(this.item);
+                    if ( i>=0 ) $scope.favlist.splice( i, 1 );
+                    window.localStorage.setItem('graniteland.favlist', angular.toJson($scope.favlist));
+                } else {
+                    console.log('>>>> ADD ITEM...');
+                    // Add a new item to the favlist.
+                    this.item.isFav = true;
+                    var i = $scope.getFavlistIndex(this.item);
+                    if (i >= 0) $scope.favlist.splice( i, 1 );
+                    $scope.favlist.unshift(this.item);
+                    window.localStorage.setItem('graniteland.favlist', angular.toJson($scope.favlist));
+                }
+            }
+
+            $scope.addItemToFavlist = function(){
+                console.log('>> addItemToFavlist: ' + this.item['name']);
+                console.log(this);
+
+                this.item.isFav = true;
+                var i = $scope.getFavlistIndex(this.item);
+                if (i >= 0) $scope.favlist.splice( i, 1 );
+                $scope.favlist.unshift(this.item);
+                window.localStorage.setItem('graniteland.favlist', angular.toJson($scope.favlist));
+            };
+            $scope.removeItemFromFavlist = function(){
+                console.log('>> removeItemFromFavlist: ' + this.item['name']);
+                console.log(this);
+
+                this.item.isFav = false;
+                var i = $scope.getFavlistIndex(this.item);
+                if ( i>=0 ) $scope.favlist.splice( i, 1 );
+                window.localStorage.setItem('graniteland.favlist', angular.toJson($scope.favlist));
+            }
+
+            // --- item modal --------------------------------------------------
+
+            $ionicModal.fromTemplateUrl('stone-item.html', {
+                scope: $scope,
+                animation: 'slide-in-up',
+            }).then(function(modal) {
+                $scope.modal = modal;
             });
 
-            $scope.onTap = function(obj){
-                console.log('THAT WAS A TAP:');
-                console.log(obj);
-
-                // TODO: Animation to move the stone thumb to a large pic on 
-                // page top and show the stone name overlayed, and stone data
-                // below the large stone pic.
+            $scope.showItem = function() {
+                console.log('>> showItem: ' + this.item['name']);
+                console.log(this);
+                $scope.item = this.item;
+                $scope.modal.show();
             };
-            $scope.onDoubleTap = function(obj){
-                $scope.favlist.unshift(obj.item);
-                window.localStorage.setItem('graniteland.favlist', angular.toJson($scope.favlist));
-
-                // TODO: Add some animation to indicate that the stone was 
-                // added to the favlist.
+            $scope.closeModal = function() {
+                $scope.modal.hide();
+                $scope.item = null;
             };
-
+            //Cleanup the modal when we're done with it!
+            $scope.$on('$destroy', function() {
+                $scope.modal.remove();
+            });
+            // Execute action on hide modal
+            $scope.$on('modal.hidden', function() {
+                // Execute action
+            });
+            // Execute action on remove modal
+            $scope.$on('modal.removed', function() {
+                // Execute action
+            });
         }
     ]
 );
 
 // --- services ----------------------------------------------------------------
-
-app.factory( 'DownloadFromServer', 
-    [ '$q', '$http',
-        function DownloadFromServerFactory( $q, $http ){
-            // Downloads data from the server. This should only happen on newly
-            // installed apps. Once downloaded, everything should be in locally
-            // cached in localStorage.
-
-            function getStonelist(){
-                var deferred = $q.defer();
-            
-                $http.get( window.URL_STONELIST ).success( function( data ){
-                    deferred.resolve( data );
-                } ).error( function( err ){
-                    deferred.reject( 'Could not load Stonelist from server.' );
-                } );
-
-                return deferred.promise;
-            }
-
-            this.getStonelist = getStonelist;
-            return this;
-        }
-    ]
-);
 
 app.factory( 'Stonelist', 
     [ '$q', '$rootScope', 
@@ -126,16 +159,18 @@ app.factory( 'Stonelist',
             function removeFilter( key ){ setFilter( key, null ); }
 
             function filter(){
-                // Use the filterArr filter array to return only the matching
-                // stones.
-                var deferred = $q.defer();
+                // TODO: Use the filterArr filter array to return only the 
+                // matching stones.
+                var li = graniteland.STONE_DB;
 
-                setTimeout(function(){
-                    stones = $rootScope.stonelist;
-                    deferred.resolve(stones);
-                }, 100);
+                // Attach isFav property if in the user's favlist.
+                for ( var i=0; i<li.length; i++)
+                    for ( var j=0; j<$rootScope.favlist.length; j++ )
+                        if ( li[i]['id'] == $rootScope.favlist[j]['id'] )
+                            li[i]['isFav'] = true; // Found one!
 
-                return deferred.promise;
+                // Return the filtered list.
+                return li;
             }
 
             this.setFilter = setFilter;

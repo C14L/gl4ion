@@ -7,6 +7,14 @@
 
     <link href="lib/ionic/css/ionic.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
+    <style type="text/css">
+  
+.gridlist { width: 100%; }
+.gridlist > .item { display: inline-block; width: 50vw; height: 50vw; margin: 0; padding: 0; outline: 0; border: 2px dashed transparent; overflow: hidden; vertical-align: top; }
+.gridlist > .item > img { height: 100%; }
+.gridlist > .item.is-fav { border-color: red; }
+
+   </style>
 
     <!-- IF using Sass (run gulp sass first), then uncomment below and remove the CSS includes above
     <link href="css/ionic.app.css" rel="stylesheet">
@@ -19,14 +27,8 @@
     <script src="cordova.js"></script>
 
     <!-- your app's js -->
+    <script src="stonelist.js"></script>
     <script src="js/app.js"></script>
-<style type="text/css">
-  
-.gridlist { width: 100%; }
-.gridlist > .item { display: inline-block; width: 50vw; height: 50vw; margin: 0; padding: 0; outline: 0; border: 2px solid transparent; overflow: hidden; vertical-align: top; }
-.gridlist > .item > img { height: 100%; }
-
-</style>
   </head>
   <body ng-app="graniteland" ng-controller="StonelistController">
     <ion-side-menus>
@@ -38,7 +40,7 @@
         </ion-header-bar>
         <ion-content>
           <div class="gridlist">
-            <a class="item" on-tap="onTap(this)" on-double-tap="onDoubleTap(this)" href="#" ng-repeat="item in stonelist track by item.id">
+            <a ng-repeat="item in stonelist track by item.id" on-tap="showItem()" on-hold="addOrRemoveItemOnFavlist()" class="item" ng-class="{ 'is-fav': item.isFav }" href="#">
               <img src="pic/{{ item.largepic }}">
             </a>
           </div>
@@ -48,19 +50,43 @@
       <!-- Left menu -->
       <ion-side-menu side="left">
         <ion-header-bar class="bar bar-header bar-dark">
-          <h1 class="title">Bookmarks</h1>
+          <h1 class="title">Bookmarks ({{ favlist.length }})</h1>
         </ion-header-bar>
         <ion-content>
           <div class="list">
             <a class="item item-thumbnail-left" href="#" ng-repeat="item in favlist track by item.id">
-              <img src="pic/{{ item.largepic }}">
-              <h2>{{ item.name }}</h2>
-              <p>A {{ item.class }} from {{ item.country }}.</p>
+              <img on-tap="showItem()" src="pic/{{ item.largepic }}">
+              <h2 on-tap="showItem()">{{ item.name }}</h2>
+              <p on-tap="showItem()">
+                {{ item.classification_name }} from {{ item.country_name }}.
+              </p>
+              <button on-tap="addOrRemoveItemOnFavlist()" style="float:right;" class="button icon button-small button-outline button-stable ion-android-close"></button>
             </a>
           </div>
         </ion-content>
       </ion-side-menu>
 
     </ion-side-menus>
+
+    <script id="stone-item.html" type="text/ng-template">
+      <ion-modal-view>
+        <ion-header-bar>
+          <h1 class="title">{{ item.name }}</h1>
+          <button on-tap="closeModal()" class="button button-icon icon ion-android-close"></button>
+        </ion-header-bar>
+        <ion-content>
+          <img style="min-width:100vw;" src="pic/{{ item.largepic }}">
+          <p class="padding">
+            <span>
+              <strong>{{ item.name }}</strong> is a {{ item.color_name }} 
+              {{ item.classification_name }} from {{ item.country_name }}. 
+            </span>
+            <span ng-hide="item.classification_name == item.classification_simple">
+              A {{ item.classification_name }} is similar to a {{ item.classification_simple }}.
+            </span>
+          </p>
+        </ion-content>
+      </ion-modal-view>
+    </script>
   </body>
 </html>
