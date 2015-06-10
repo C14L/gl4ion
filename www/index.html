@@ -22,10 +22,8 @@
 
     <!-- ionic/angularjs js -->
     <script src="lib/ionic/js/ionic.bundle.js"></script>
-
     <!-- cordova script (this will be a 404 during development) -->
     <script src="cordova.js"></script>
-
     <!-- your app's js -->
     <script src="stonelist.js"></script>
     <script src="js/app.js"></script>
@@ -41,7 +39,7 @@
         <ion-content>
           <div class="gridlist">
             <a ng-repeat="item in stonelist track by item.id" on-tap="showItem()" on-hold="addOrRemoveItemOnFavlist()" class="item" ng-class="{ 'is-fav': item.isFav }" href="#">
-              <img src="pic/{{ item.largepic }}">
+              <img src="pics/{{ item.pic }}">
             </a>
           </div>
         </ion-content>
@@ -55,7 +53,7 @@
         <ion-content>
           <div class="list">
             <a class="item item-thumbnail-left" href="#" ng-repeat="item in favlist track by item.id">
-              <img on-tap="showItem()" src="pic/{{ item.largepic }}">
+              <img on-tap="showItem()" src="pics/{{ item.pic }}">
               <h2 on-tap="showItem()">{{ item.name }}</h2>
               <p on-tap="showItem()">
                 {{ item.classification_name }} from {{ item.country_name }}.
@@ -75,7 +73,7 @@
           <button on-tap="closeModal()" class="button button-icon icon ion-android-close"></button>
         </ion-header-bar>
         <ion-content>
-          <img style="min-width:100vw;" src="pic/{{ item.largepic }}">
+          <img style="min-width:100vw;" src="pics/{{ item.pic }}">
           <p class="padding">
             <span>
               <strong>{{ item.name }}</strong> is a {{ item.color_name }} 
