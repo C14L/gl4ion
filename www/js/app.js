@@ -1,6 +1,8 @@
 // Ionic Starter App
 
-window.URL_STONELIST = 'stonelist.json'; // 'http://cur.graniteland.com/api/stonelist.json';
+var URL_STONELIST = 'stonelist.json';
+var DEFAULT_COLOR = 'blue';
+var DEFAULT_CLASSIFICATION = 'Granite';
 
 // angular.module is a global place for creating, registering and retrieving Angular modules
 // 'starter' is the name of this angular module example (also set in a <body> attribute in index.html)
@@ -9,15 +11,14 @@ var app = angular.module( 'graniteland', ['ionic'] );
 
 // --- run ---------------------------------------------------------------------
 
-app.run(
-    [ '$rootScope', '$ionicPlatform', '$http',
-        function( $rootScope, $ionicPlatform, $http ){
-    console.log('Starting up...');
+app.run( 
+    [ '$rootScope', '$ionicPlatform', '$http', 
+    function( $rootScope, $ionicPlatform, $http ){
 
-    $ionicPlatform.ready( function() {
+    $ionicPlatform.ready( function(){
         console.log('>> $ionicPlatform is ready!');
-        // Hide the accessory bar by default (remove this to show the accessory bar above the keyboard
-        // for form inputs)
+        // Hide the accessory bar by default (remove this to show the 
+        // accessory bar above the keyboard for form inputs)
         if ( window.cordova && window.cordova.plugins.Keyboard ) {
             cordova.plugins.Keyboard.hideKeyboardAccessoryBar( true );
         }
@@ -26,9 +27,41 @@ app.run(
         }
     });
 
-    // Remember IDs of stones the user likes.
-    $rootScope.favlist = angular.fromJson( 
-        window.localStorage.getItem( 'graniteland.favlist' ) || '[]' );
+    // Load stone data from JSON file.
+    $rootScope.stoneallPromise = $http.get( URL_STONELIST );
+
+    $rootScope.stoneallPromise.then( function( response ){
+        $rootScope.stoneall = response.data;
+
+        // Find all existing colors.
+        $rootScope.colorlist = [];
+        for ( var i=0; i<$rootScope.stoneall.length; i++ ){
+            if ( ! $rootScope.stoneall[i]['color_name'] ) continue;
+            var x = $rootScope.stoneall[i]['color_name'].trim();
+            if ( x !== '' && $rootScope.colorlist.indexOf( x ) < 0 )
+                $rootScope.colorlist.push( x );
+        }
+
+        // Find all existing classifications.
+        $rootScope.classificationlist = [];
+        for ( var i=0; i<$rootScope.stoneall.length; i++ ){
+            if ( ! $rootScope.stoneall[i]['classification_name'] ) continue;
+            var x = $rootScope.stoneall[i]['classification_name'].trim();
+            if ( x !== '' && $rootScope.classificationlist.indexOf( x ) < 0 )
+                $rootScope.classificationlist.push( x );
+        }
+
+        $rootScope.colorlist = $rootScope.colorlist.sort();
+        $rootScope.classificationlist = $rootScope.classificationlist.sort();
+    });
+    
+    // Restore IDs of stones the user likes.
+    $rootScope.favlist = angular.fromJson( window.localStorage.getItem( 'graniteland.favlist' ) || '[]' );
+
+    // Restore filter settings, if any.
+    $rootScope.filterByColor = window.localStorage.getItem( 'graniteland.filterByColor' ) || window.DEFAULT_COLOR;
+    $rootScope.filterByClassification = window.localStorage.getItem( 'graniteland.filterByClassification' ) || window.DEFAULT_CLASSIFICATION;
+    $rootScope.filterByClassificationLabel = '';
 }]);
 
 // --- global values -----------------------------------------------------------
@@ -41,13 +74,62 @@ app.value( 'settings', {
 // --- controllers -------------------------------------------------------------
 
 app.controller( 'StonelistController',
-    [ '$scope', '$timeout', '$ionicModal', 'Stonelist', 'settings',
-        function( $scope, $timeout, $ionicModal, Stonelist, settings ){
+    [ '$scope', '$timeout', '$ionicModal', '$ionicPopover', 'settings',
+        function( $scope, $timeout, $ionicModal, $ionicPopover, settings ){
 
-            $scope.stonelist = Stonelist.filter();
-            $scope.favlist = angular.fromJson( window.localStorage.getItem( 'graniteland.favlist' ) || '[]' );
+            $scope.setColorFilter = function( ){
+                $scope.filterByColor = this['color'];
+                window.localStorage.setItem( 'graniteland.filterByColor', $scope.filterByColor );
+                $scope.filterStonelist();
+                $scope.closePopover();
+                $scope.setClassificationLabel(); // Update classification list.
+            }
+            $scope.setClassificationFilter = function( ){ 
+                // We get the label here. Find the matching classification name first.
+                $scope.filterByClassificationLabel = this['classification'];
+                var idx = $scope.classificationLabelList.indexOf( $scope.filterByClassificationLabel );
+                $scope.filterByClassification = $scope.classificationlist[idx];
+                window.localStorage.setItem( 'graniteland.filterByClassification', $scope.filterByClassification );
+                $scope.filterStonelist();
+                $scope.closePopover();
+            }
+            $scope.filterStonelist = function(){
+                // Runs the currently set filter over stoneall and generates
+                // a new stonelist to display.
+                $scope.stonelist = [];
+                for ( var i=0; i<$scope.stoneall.length; i++){
+                    if ( $scope.filterByColor == $scope.stoneall[i]['color_name']
+                    && $scope.filterByClassification == $scope.stoneall[i]['classification_name'] ){
+                        // Check if the stone is in favlist.
+                        $scope.stoneall[i]['isFav'] = !($scope.getFavlistIndex( $scope.stoneall[i] ) < 0);
+                        $scope.stonelist.push( $scope.stoneall[i] );
+                    }
+                }
+            }
+            $scope.setClassificationLabel = function(){
+                // The classification list should include the currently selected
+                // color name, e.g. "green marble" and not just "marble", as well
+                // as the number of stones that fit that combination, e.g.
+                // "green marble (27)" and not just "green marble".
+                $scope.classificationLabelList = [];
+                for ( var i=0; i<$scope.classificationlist.length; i++ ){
+                    // TODO: count the number of stones with that combination.
+                    var c = 0;
+                    // Make the label string.
+                    var x = $scope.filterByColor + ' ' + $scope.classificationlist[i] + ' (' + c + ')';
+                    // Append this label to the label list.
+                    $scope.classificationLabelList.push( x );
+                    // Set currently selected.
+                    if ( $scope.filterByClassification === $scope.classificationlist[i] )
+                        $scope.filterByClassificationLabel = x;
+                }
+            }
 
-            console.log('>> StonelistController loaded stonelist with "' + $scope.stonelist.length + '" items.');
+            // Run the filter onload.
+            $scope.stoneallPromise.then( function(){
+                $scope.filterStonelist();
+                $scope.setClassificationLabel();
+            });
 
             // --- favlist -----------------------------------------------------
 
@@ -59,7 +141,6 @@ app.controller( 'StonelistController',
                 }
                 return (-1);
             }
-
 
             $scope.addOrRemoveItemOnFavlist = function(){
                 console.log('>> addOrRemoveItemOnFavlist: ' + this.item['name']);
@@ -128,7 +209,7 @@ app.controller( 'StonelistController',
             };
             $scope.closeModal = function() {
                 $scope.modal.hide();
-                $scope.item = null;
+                //$scope.item = null;
             };
             //Cleanup the modal when we're done with it!
             $scope.$on('$destroy', function() {
@@ -142,13 +223,48 @@ app.controller( 'StonelistController',
             $scope.$on('modal.removed', function() {
                 // Execute action
             });
+            
+            // --- navbar popovers ---------------------------------------------
+
+            $ionicPopover.fromTemplateUrl( 'popover-color-select.html', {
+                scope: $scope
+            }).then( function( popover ){
+                $scope.popoverColor = popover;
+            });
+            $scope.openPopoverColorSelect = function($event) {
+                $scope.popoverColor.show($event);
+            };
+
+            $ionicPopover.fromTemplateUrl( 'popover-classification-select.html', {
+                scope: $scope
+            }).then( function( popover ){
+                $scope.popoverClassification = popover;
+            });
+            $scope.openPopoverClassificationSelect = function($event) {
+                $scope.popoverClassification.show($event);
+            };
+
+            $scope.closePopover = function(){
+                $scope.popoverColor.hide();
+                $scope.popoverClassification.hide();
+            };
+            // Cleanup the popover when we're done with it!
+            $scope.$on('$destroy', function(){
+                $scope.popoverColor.remove();
+                $scope.popoverClassification.remove();
+            });
+            // Execute action on hide popover
+            $scope.$on('popover.hidden', function(){ });
+            // Execute action on remove popover
+            $scope.$on('popover.removed', function(){ });
+
         }
     ]
 );
 
 // --- services ----------------------------------------------------------------
 
-app.factory( 'Stonelist', 
+/* app.factory( 'Stonelist', 
     [ '$q', '$rootScope', 
         function StonelistFactory( $q, $rootScope ){
             // Return a list of stones that match the current search parameters.
@@ -180,6 +296,6 @@ app.factory( 'Stonelist',
             return this;
         }
     ]
-);
+); */
 
 // -----------------------------------------------------------------------------
