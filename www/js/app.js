@@ -113,12 +113,21 @@ app.controller( 'StonelistController',
                 // "green marble (27)" and not just "green marble".
                 $scope.classificationLabelList = [];
                 for ( var i=0; i<$scope.classificationlist.length; i++ ){
-                    // TODO: count the number of stones with that combination.
+                    // Count the number of stones with that combination.
                     var c = 0;
+                    for ( var j=0; j<$scope.stoneall.length; j++){
+                        if ( $scope.filterByColor == $scope.stoneall[j]['color_name']
+                        && $scope.classificationlist[i] == $scope.stoneall[j]['classification_name'] ){
+                            c++;
+                        }
+                    }
+
                     // Make the label string.
                     var x = $scope.filterByColor + ' ' + $scope.classificationlist[i] + ' (' + c + ')';
+
                     // Append this label to the label list.
                     $scope.classificationLabelList.push( x );
+
                     // Set currently selected.
                     if ( $scope.filterByClassification === $scope.classificationlist[i] )
                         $scope.filterByClassificationLabel = x;
