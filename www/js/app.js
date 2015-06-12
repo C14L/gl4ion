@@ -75,8 +75,8 @@ app.value( 'settings', {
 // --- controllers -------------------------------------------------------------
 
 app.controller( 'AppController',
-        [ '$scope', 'Stones', '$ionicModal', '$ionicPopover', 'settings',
-        function( $scope, Stones, $ionicModal, $ionicPopover, settings ){
+        [ '$scope', 'Stones', '$ionicModal', '$ionicPopover', '$ionicScrollDelegate', 'settings',
+        function( $scope, Stones, $ionicModal, $ionicPopover, $ionicScrollDelegate, settings ){
 
     $scope.stonelistPromise.then( function( result ){
         $scope.stonelist = Stones.getStonelist();
@@ -98,6 +98,8 @@ app.controller( 'AppController',
         Stones.setFilterByColor( this.color );
         // And fetch the newly filtered stone list.
         $scope.stonelist = Stones.getStonelist();
+        $ionicScrollDelegate.scrollTop();
+
         // TODO: Here the content show automatically scroll to the top !!!
 
         // Remove the menu with color options.
@@ -121,6 +123,8 @@ app.controller( 'AppController',
         Stones.setFilterByClassificationLabel( this.classification );
         // And fetch the newly filtered stone list.
         $scope.stonelist = Stones.getStonelist();
+        $ionicScrollDelegate.scrollTop();
+
         // TODO: Here the content show automatically scroll to the top !!!
 
         // Remove the menu with classification options.
