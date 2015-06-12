@@ -58,7 +58,12 @@ app.run([ '$rootScope', '$ionicPlatform', '$http', 'Stones',
 
     // Restore IDs of stones the user likes.
     $rootScope.favlist = angular.fromJson( window.localStorage.getItem( 'graniteland.favlist' ) || '[]' );
-
+    
+    $rootScope.colorlist = [];
+    $rootScope.classificationlist = [];
+    $rootScope.classificationLabelList = [];
+    $rootScope.filterByClassificationLabel = '';
+    $rootScope.filterByColor = '';
 }]);
 
 // --- global values -----------------------------------------------------------
@@ -75,10 +80,37 @@ app.controller( 'AppController',
         function( $scope, Stones, $ionicModal, $ionicPopover, settings ){
 
     $scope.stonelistPromise.then( function( result ){
-        $scope.stonelist = Stones.getStonelist();
 
-        Stones.setClassificationLabel();
+        $scope.classificationlist = Stones.getClassificationLabelList();
+        $scope.filterByColor = Stones.getFilterByColor();
+        $scope.filterByClassificationLabel = Stones.getFilterByClassificationLabel();
+
+        $scope.classificationLabelList = Stones.getClassificationLabelList();
+        $scope.colorlist = Stones.getColorList();
+
+        $scope.stonelist = Stones.getStonelist();
+        if ( DEBUG ) console.log( 'Stonelist loaded with ' + $scope.stonelist.length + ' items.' );
     });
+
+    $scope.setColorFilter = function(){
+        if ( DEBUG ) console.log( this );
+        Stones.setFilterByColor( this.color );
+        $scope.stonelist = Stones.getStonelist();
+        $scope.closePopover();
+        $scope.classificationLabelList = Stones.getClassificationLabelList();
+        $scope.colorlist = Stones.getColorList();
+        $scope.filterByColor = Stones.getFilterByColor();
+        $scope.filterByClassificationLabel = Stones.getFilterByClassificationLabel();
+    }
+    $scope.setClassificationFilter = function(){
+        if ( DEBUG ) console.log( this );
+        Stones.setFilterByClassificationLabel( this.classification );
+        $scope.stonelist = Stones.getStonelist();
+        $scope.closePopover();
+        $scope.classificationLabelList = Stones.getClassificationLabelList();
+        $scope.colorlist = Stones.getColorList();
+        $scope.filterByClassificationLabel = Stones.getFilterByClassificationLabel();
+    }
 
     // --- navbar popovers -----------------------------------------------------
 
@@ -212,12 +244,16 @@ app.factory( 'Stones',
         [ '$q', '$rootScope', '$http',
         function StonesFactory( $q, $rootScope, $http ){
 
-    // --- fetch stonelist -----------------------------------------------------
-
     var stoneall = []; // List of all stones.
     var stonelist = []; // Stones after filters applied.
     var colorlist = []; // All colors from all stones.
     var classificationlist = []; // All stone classifications.
+
+    var filterByColor = window.localStorage.getItem( 'graniteland.filterByColor' ) || DEFAULT_COLOR;
+    var filterByClassification = window.localStorage.getItem( 'graniteland.filterByClassification' ) || DEFAULT_CLASSIFICATION;
+    var filterByClassificationLabel = filterByColor + ' ' + filterByClassification + ' (?)';
+
+    // --- fetch stonelist -----------------------------------------------------
 
     function loadStones(){
         var deferred = $q.defer();
@@ -251,45 +287,13 @@ app.factory( 'Stones',
         return deferred.promise;
     }
 
-    // --- set filter ----------------------------------------------------------
-
-    var filterByColor = window.localStorage.getItem( 'graniteland.filterByColor' ) || window.DEFAULT_COLOR;
-    var filterByClassification = window.localStorage.getItem( 'graniteland.filterByClassification' ) || window.DEFAULT_CLASSIFICATION;
-    var filterByClassificationLabel = '';
-
-    function setColorFilter( color_name ){
-        filterByColor = color_name;
-        window.localStorage.setItem( 'graniteland.filterByColor', filterByColor );
-        setClassificationLabel(); // Update classification list.
+    function getColorList(){
+        return colorlist;
     }
-    function getColorFilter(){
-        return filterByColor;
+    function getClassificationList(){
+        return classificationlist;
     }
-    function setClassificationFilter( classification_label ){ 
-        // We get the label here. Find the matching classification name first.
-        filterByClassificationLabel = classification_label;
-        var idx = classificationLabelList.indexOf( filterByClassificationLabel );
-        filterByClassification = classificationlist[idx];
-        window.localStorage.setItem( 'graniteland.filterByClassification', $scope.filterByClassification );
-        $scope.filterStonelist();
-        $scope.closePopover();
-    }
-    function getClassificationFilter(){ 
-        return filterByClassification
-    }
-
-    function getStonelist(){
-        // Runs the currently set filter over stoneall and generates
-        // a new stonelist to display.
-        stonelist = [];
-        for ( var i=0; i<stoneall.length; i++){
-            if ( filterByColor == stoneall[i]['color_name']
-            && filterByClassification == stoneall[i]['classification_name'] ){
-                stonelist.push( stoneall[i] );
-            }
-        }
-    }
-    function setClassificationLabel(){
+    function getClassificationLabelList(){
         // The classification list should include the currently selected
         // color name, e.g. "green marble" and not just "marble", as well
         // as the number of stones that fit that combination, e.g.
@@ -309,18 +313,74 @@ app.factory( 'Stones',
             // Append this label to the label list.
             classificationLabelList.push( x );
             // Set currently selected.
-            if ( filterByClassification === classificationlist[i] ) filterByClassificationLabel = x;
+            if ( filterByClassification === classificationlist[i] ) 
+                filterByClassificationLabel = x;
         }
+        return classificationLabelList;
+    }
+
+    function getStonelist(){
+        // Runs the currently set filter over stoneall and generates
+        // a new stonelist to display.
+        if ( DEBUG ) console.log( 'Stone.getStonelist() called, filterByColor=="'+filterByColor+'" and filterByClassification=="'+filterByClassification+'".' );
+        stonelist = [];
+        for ( var i=0; i<stoneall.length; i++){
+            if ( filterByColor == stoneall[i]['color_name']
+            && filterByClassification == stoneall[i]['classification_name'] ){
+                stonelist.push( stoneall[i] );
+            }
+        }
+        if ( DEBUG ) console.log( 'Stone.getStonelist() found stonelist with "'+stonelist.length+'" items out of stoneall with "'+stoneall.length+'" items.' );
+        return stonelist;
+    }
+
+    // --- set filter ----------------------------------------------------------
+
+    function setFilterByColor( color_name ){
+        filterByColor = color_name;
+        window.localStorage.setItem( 'graniteland.filterByColor', filterByColor );
+    }
+    function getFilterByColor(){
+        return filterByColor;
+    }
+    
+    function setFilterByClassificationLabel( classification_label ){
+        // We get the label here. Find the matching classification name first.
+        filterByClassificationLabel = classification_label;
+        if ( DEBUG ) console.log( 'Stone.setFilterByClassificationLabel() called with classification_label=="' + classification_label + '".' );
+        if ( classificationLabelList.length < 1 ) getClassificationLabelList();
+        var idx = classificationLabelList.indexOf( filterByClassificationLabel );
+        if ( DEBUG ) console.log( 'Stone.setFilterByClassificationLabel() found at index "' + idx + '" of classificationLabelList with "' + classificationLabelList.length + '" items.' );
+        setFilterByClassification( classificationlist[idx] );
+    }
+    function getFilterByClassificationLabel(){
+        return filterByClassificationLabel;
+    }
+
+    function setFilterByClassification( classification ){ 
+        if ( DEBUG ) console.log( 'Stone.setFilterByClassification() called with classification=="' + classification + '".' );
+        filterByClassification = classification;
+        window.localStorage.setItem( 'graniteland.filterByClassification', filterByClassification );
+    }
+    function getFilterByClassification(){ 
+        return filterByClassification
     }
 
     // --- publish methods -----------------------------------------------------
 
     this.loadStones = loadStones;
-    this.setColorFilter = setColorFilter;
-    this.getColorFilter = getColorFilter;
-    this.setClassificationFilter = setClassificationFilter;
-    this.getClassificationFilter = getClassificationFilter;
-    this.setClassificationLabel = setClassificationLabel;
+    
+    this.setFilterByColor = setFilterByColor;
+    this.getFilterByColor = getFilterByColor;
+    
+    this.setFilterByClassification = setFilterByClassification;
+    this.getFilterByClassification = getFilterByClassification;
+    this.setFilterByClassificationLabel = setFilterByClassificationLabel;
+    this.getFilterByClassificationLabel = getFilterByClassificationLabel;
+    
+    this.getColorList = getColorList;
+    this.getClassificationList = getClassificationList;
+    this.getClassificationLabelList = getClassificationLabelList;
     this.getStonelist = getStonelist;
     return this;
 }]);
