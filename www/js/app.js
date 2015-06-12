@@ -58,7 +58,6 @@ app.run([ '$rootScope', '$ionicPlatform', '$http', 'Stones',
 
     // Restore IDs of stones the user likes.
     $rootScope.favlist = angular.fromJson( window.localStorage.getItem( 'graniteland.favlist' ) || '[]' );
-    
     $rootScope.colorlist = [];
     $rootScope.classificationlist = [];
     $rootScope.classificationLabelList = [];
@@ -80,35 +79,57 @@ app.controller( 'AppController',
         function( $scope, Stones, $ionicModal, $ionicPopover, settings ){
 
     $scope.stonelistPromise.then( function( result ){
-
-        $scope.classificationlist = Stones.getClassificationLabelList();
+        $scope.stonelist = Stones.getStonelist();
+        $scope.attachIsFavToStonelistItems();
+        $scope.classificationLabelList = Stones.getClassificationLabelList();
+        $scope.classificationlist = Stones.getClassificationList();
+        $scope.colorlist = Stones.getColorList();
         $scope.filterByColor = Stones.getFilterByColor();
+        $scope.filterByClassification = Stones.getFilterByClassification();
         $scope.filterByClassificationLabel = Stones.getFilterByClassificationLabel();
 
-        $scope.classificationLabelList = Stones.getClassificationLabelList();
-        $scope.colorlist = Stones.getColorList();
-
-        $scope.stonelist = Stones.getStonelist();
-        if ( DEBUG ) console.log( 'Stonelist loaded with ' + $scope.stonelist.length + ' items.' );
+        if ( DEBUG ) console.log( 'AppController: $scope.stonelist loaded with ' + $scope.stonelist.length + ' items.' );
+        if ( DEBUG ) console.log( $scope.stonelist );
     });
 
     $scope.setColorFilter = function(){
         if ( DEBUG ) console.log( this );
+        // Set a new filter in the Factory.
         Stones.setFilterByColor( this.color );
+        // And fetch the newly filtered stone list.
         $scope.stonelist = Stones.getStonelist();
+        // TODO: Here the content show automatically scroll to the top !!!
+
+        // Remove the menu with color options.
         $scope.closePopover();
-        $scope.classificationLabelList = Stones.getClassificationLabelList();
+        // Update the classification options list with the selected color and
+        // the amount of available stones for each color+classification
+        // combination.
+        $scope.classificationLabelList = Stones.getClassificationLabelList(); 
         $scope.colorlist = Stones.getColorList();
         $scope.filterByColor = Stones.getFilterByColor();
+        // The name of the classification label has changed to include the name
+        // of the newly selected color, so we need to update here the name of
+        // the currently selected classification label.
+        $scope.filterByColor = Stones.getFilterByColor();
+        $scope.filterByClassification = Stones.getFilterByClassification();
         $scope.filterByClassificationLabel = Stones.getFilterByClassificationLabel();
     }
     $scope.setClassificationFilter = function(){
         if ( DEBUG ) console.log( this );
+        // Set a new filter in the Factory.
         Stones.setFilterByClassificationLabel( this.classification );
+        // And fetch the newly filtered stone list.
         $scope.stonelist = Stones.getStonelist();
+        // TODO: Here the content show automatically scroll to the top !!!
+
+        // Remove the menu with classification options.
         $scope.closePopover();
         $scope.classificationLabelList = Stones.getClassificationLabelList();
         $scope.colorlist = Stones.getColorList();
+        // Get the name of the currently selected classification label.
+        $scope.filterByColor = Stones.getFilterByColor();
+        $scope.filterByClassification = Stones.getFilterByClassification();
         $scope.filterByClassificationLabel = Stones.getFilterByClassificationLabel();
     }
 
@@ -146,64 +167,6 @@ app.controller( 'AppController',
     // Execute action on remove popover
     $scope.$on('popover.removed', function(){ });
 
-}]);
-
-app.controller( 'StonelistController',
-        [ '$scope', 'Stones', '$ionicModal', '$ionicPopover', 'settings',
-        function( $scope, Stones, $ionicModal, $ionicPopover, settings ){
-
-    // --- favlist -------------------------------------------------------------
-
-    $scope.getFavlistIndex = function(item){
-        // Returns the index number of an item in the favlist, or 
-        // returns false if the item is not in the favlist.
-        for ( i=0; i<$scope.favlist.length; i++ ){
-            if ( $scope.favlist[i]['id'] == item['id'] ) return i;
-        }
-        return (-1);
-    }
-
-    $scope.addOrRemoveItemOnFavlist = function(){
-        if ( DEBUG ) console.log('>> addOrRemoveItemOnFavlist: ' + this.item['name']);
-        if ( DEBUG ) console.log(this);
-        if ( this.item.isFav ){
-            if ( DEBUG ) console.log('>>>> REMOVE ITEM...');
-            // Remove item from favlist.
-            this.item.isFav = false;
-            var i = $scope.getFavlistIndex(this.item);
-            if ( i>=0 ) $scope.favlist.splice( i, 1 );
-            window.localStorage.setItem('graniteland.favlist', angular.toJson($scope.favlist));
-        } else {
-            if ( DEBUG ) console.log('>>>> ADD ITEM...');
-            // Add a new item to the favlist.
-            this.item.isFav = true;
-            var i = $scope.getFavlistIndex(this.item);
-            if (i >= 0) $scope.favlist.splice( i, 1 );
-            $scope.favlist.unshift(this.item);
-            window.localStorage.setItem('graniteland.favlist', angular.toJson($scope.favlist));
-        }
-    }
-
-    $scope.addItemToFavlist = function(){
-        if ( DEBUG ) console.log('>> addItemToFavlist: ' + this.item['name']);
-        if ( DEBUG ) console.log(this);
-
-        this.item.isFav = true;
-        var i = $scope.getFavlistIndex(this.item);
-        if (i >= 0) $scope.favlist.splice( i, 1 );
-        $scope.favlist.unshift(this.item);
-        window.localStorage.setItem('graniteland.favlist', angular.toJson($scope.favlist));
-    };
-    $scope.removeItemFromFavlist = function(){
-        if ( DEBUG ) console.log('>> removeItemFromFavlist: ' + this.item['name']);
-        if ( DEBUG ) console.log(this);
-
-        this.item.isFav = false;
-        var i = $scope.getFavlistIndex(this.item);
-        if ( i>=0 ) $scope.favlist.splice( i, 1 );
-        window.localStorage.setItem('graniteland.favlist', angular.toJson($scope.favlist));
-    }
-
     // --- item modal ----------------------------------------------------------
 
     $ionicModal.fromTemplateUrl('stone-item.html', {
@@ -235,7 +198,76 @@ app.controller( 'StonelistController',
     $scope.$on('modal.removed', function() {
         // Execute action
     });
-    
+
+    // --- favlist -------------------------------------------------------------
+
+    $scope.getFavlistIndex = function(item){
+        // Returns the index number of an item in the favlist, or 
+        // returns false if the item is not in the favlist.
+        for ( i=0; i<$scope.favlist.length; i++ ){
+            if ( $scope.favlist[i]['id'] == item['id'] ) return i;
+        }
+        return (-1);
+    }
+    $scope.attachIsFavToStonelistItems = function(){
+        // Attaches isFav properties to all items in stonelist, so they get
+        // the rendered marker (dashed border) that they are in the favlist.
+        if ( DEBUG ) console.log( '$scope.attachIsFavToStonelistItems() called looping stonelist with ' + $scope.stonelist.length + ' items and favlist with ' + $scope.favlist.length + ' items.');
+        for ( var i=0; i<$scope.stonelist.length; i++ ){
+            $scope.stonelist[i]['isFav'] = false;
+            for ( var j=0; j<$scope.favlist.length; j++ ){
+                if ( $scope.favlist[j]['id'] == $scope.stonelist[i]['id'] ){
+                    $scope.stonelist[i]['isFav'] = true;
+                    break;
+                }
+            }
+        }
+    }
+    $scope.addOrRemoveItemOnFavlist = function(){
+        if ( DEBUG ) console.log('>> addOrRemoveItemOnFavlist: ' + this.item['name']);
+        if ( DEBUG ) console.log(this);
+        if ( this.item.isFav ){
+            if ( DEBUG ) console.log('>>>> REMOVE ITEM...');
+            // Remove item from favlist.
+            this.item.isFav = false;
+            var i = $scope.getFavlistIndex(this.item);
+            if ( i>=0 ) $scope.favlist.splice( i, 1 );
+            window.localStorage.setItem('graniteland.favlist', angular.toJson($scope.favlist));
+        } else {
+            if ( DEBUG ) console.log('>>>> ADD ITEM...');
+            // Add a new item to the favlist.
+            this.item.isFav = true;
+            var i = $scope.getFavlistIndex(this.item);
+            if (i >= 0) $scope.favlist.splice( i, 1 );
+            $scope.favlist.unshift(this.item);
+            window.localStorage.setItem('graniteland.favlist', angular.toJson($scope.favlist));
+        }
+        $scope.attachIsFavToStonelistItems();
+    }
+    $scope.addItemToFavlist = function(){
+        if ( DEBUG ) console.log('>> addItemToFavlist: ' + this.item['name']);
+        if ( DEBUG ) console.log(this);
+
+        this.item.isFav = true;
+        var i = $scope.getFavlistIndex(this.item);
+        if (i >= 0) $scope.favlist.splice( i, 1 );
+        $scope.favlist.unshift(this.item);
+        window.localStorage.setItem('graniteland.favlist', angular.toJson($scope.favlist));
+    };
+    $scope.removeItemFromFavlist = function(){
+        if ( DEBUG ) console.log('>> removeItemFromFavlist: ' + this.item['name']);
+        if ( DEBUG ) console.log(this);
+
+        this.item.isFav = false;
+        var i = $scope.getFavlistIndex(this.item);
+        if ( i>=0 ) $scope.favlist.splice( i, 1 );
+        window.localStorage.setItem('graniteland.favlist', angular.toJson($scope.favlist));
+    }
+}]);
+
+app.controller( 'StonelistController',
+        [ '$scope', 'Stones', '$ionicModal', '$ionicPopover', 'settings',
+        function( $scope, Stones, $ionicModal, $ionicPopover, settings ){
 }]);
 
 // --- services ----------------------------------------------------------------
@@ -363,7 +395,8 @@ app.factory( 'Stones',
         window.localStorage.setItem( 'graniteland.filterByClassification', filterByClassification );
     }
     function getFilterByClassification(){ 
-        return filterByClassification
+        if ( DEBUG ) console.log( 'Stone.getFilterByClassification() returning "' + filterByClassification + '".' );
+        return filterByClassification;
     }
 
     // --- publish methods -----------------------------------------------------
@@ -372,7 +405,6 @@ app.factory( 'Stones',
     
     this.setFilterByColor = setFilterByColor;
     this.getFilterByColor = getFilterByColor;
-    
     this.setFilterByClassification = setFilterByClassification;
     this.getFilterByClassification = getFilterByClassification;
     this.setFilterByClassificationLabel = setFilterByClassificationLabel;
@@ -382,6 +414,7 @@ app.factory( 'Stones',
     this.getClassificationList = getClassificationList;
     this.getClassificationLabelList = getClassificationLabelList;
     this.getStonelist = getStonelist;
+
     return this;
 }]);
 
