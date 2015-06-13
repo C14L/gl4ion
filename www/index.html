@@ -10,11 +10,26 @@
     <link href="lib/ionic-material/ionic.material.min.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
     <style type="text/css">
-  
+
 .gridlist { width: 100%; }
 .gridlist > .item { display: inline-block; width: 50vw; height: 50vw; margin: 0; padding: 0; outline: 0; border: 2px dashed transparent; overflow: hidden; vertical-align: top; }
 .gridlist > .item > img { height: 100%; }
 .gridlist > .item.is-fav { border-color: red; }
+
+.stone-item-view { background-color: #F3F3F3; }
+.stone-item-view .stone-item-pic { width:100vw; }
+
+@media only screen and (min-width: 450px) {
+  .gridlist > .item { width: 33.333vw; height: 33.333vw; }
+}
+@media only screen and (min-width: 600px) {
+  .gridlist > .item { width: 25vw; height: 25vw; }
+  .stone-item-view .stone-item-pic { width: 50%; float: left; }
+  .stone-item-view .stone-item-info { width: 50%; float: left; }
+}
+@media only screen and (min-width: 800px) {
+  .gridlist > .item { width: 20vw; height: 20vw; }
+}
 
     </style>
     <!-- http://ionicmaterial.com/ -->
@@ -81,7 +96,7 @@
     </script>
 
     <script id="stone-item.html" type="text/ng-template">
-      <ion-modal-view>
+      <ion-modal-view class="stone-item-view">
         <ion-header-bar class="bar bar-header bar-light">
           <div class="title title-left light">{{ item.name }}</div>
           <div class="buttons buttons-right header-item">
@@ -91,8 +106,8 @@
           </div>
         </ion-header-bar>
         <ion-content>
-          <img on-tap="closeModal()" style="min-width:100vw;" src="pics/{{ item.pic }}">
-          <p class="padding" on-tap="closeModal()">
+          <img on-tap="closeModal()" class="stone-item-pic" src="pics/{{ item.pic }}">
+          <div class="padding stone-item-info" on-tap="closeModal()">
             <span>
               <strong>{{ item.name }}</strong> is a {{ item.color_name }} 
               {{ item.classification_name }} from {{ item.country_name }}. 
@@ -100,7 +115,7 @@
             <span ng-hide="item.classification_name == item.classification_simple">
               A {{ item.classification_name }} is similar to a {{ item.classification_simple }}.
             </span>
-          </p>
+          </div>
         </ion-content>
       </ion-modal-view>
     </script>
