@@ -78,6 +78,7 @@ app.controller( 'AppController',
         $scope.stonelist = Stones.getStonelist();
         $scope.attachIsFavToStonelistItems();
         $scope.classificationLabelList = Stones.getClassificationLabelList();
+        $scope.classificationCountList = Stones.getClassificationCountList();
         $scope.classificationlist = Stones.getClassificationList();
         $scope.colorlist = Stones.getColorList();
         $scope.filterByColor = Stones.getFilterByColor();
@@ -103,9 +104,9 @@ app.controller( 'AppController',
         // Update the classification options list with the selected color and
         // the amount of available stones for each color+classification
         // combination.
-        $scope.classificationLabelList = Stones.getClassificationLabelList(); 
         $scope.colorlist = Stones.getColorList();
-        $scope.filterByColor = Stones.getFilterByColor();
+        $scope.classificationLabelList = Stones.getClassificationLabelList();
+        $scope.classificationCountList = Stones.getClassificationCountList();
         // The name of the classification label has changed to include the name
         // of the newly selected color, so we need to update here the name of
         // the currently selected classification label.
@@ -125,8 +126,9 @@ app.controller( 'AppController',
 
         // Remove the menu with classification options.
         $scope.closePopover();
-        $scope.classificationLabelList = Stones.getClassificationLabelList();
         $scope.colorlist = Stones.getColorList();
+        $scope.classificationLabelList = Stones.getClassificationLabelList();
+        $scope.classificationCountList = Stones.getClassificationCountList();
         // Get the name of the currently selected classification label.
         $scope.filterByColor = Stones.getFilterByColor();
         $scope.filterByClassification = Stones.getFilterByClassification();
@@ -280,6 +282,8 @@ app.factory( 'Stones',
     var stonelist = []; // Stones after filters applied.
     var colorlist = []; // All colors from all stones.
     var classificationlist = []; // All stone classifications.
+    var classificationLabelList = [];
+    var classificationCountList = [];
 
     var filterByColor = window.localStorage.getItem( 'graniteland.filterByColor' ) || DEFAULT_COLOR;
     var filterByClassification = window.localStorage.getItem( 'graniteland.filterByClassification' ) || DEFAULT_CLASSIFICATION;
@@ -325,12 +329,14 @@ app.factory( 'Stones',
     function getClassificationList(){
         return classificationlist;
     }
+    function getClassificationCountList(){
+        return classificationCountList;
+    }
     function getClassificationLabelList(){
         // The classification list should include the currently selected
         // color name, e.g. "green marble" and not just "marble", as well
         // as the number of stones that fit that combination, e.g.
         // "green marble (27)" and not just "green marble".
-        classificationLabelList = [];
         for ( var i=0; i<classificationlist.length; i++ ){
             // Count the number of stones with that combination.
             var c = 0;
@@ -340,14 +346,21 @@ app.factory( 'Stones',
                     c++;
                 }
             }
+
             // Make the label string.
             var x = filterByColor + ' ' + classificationlist[i] + ' (' + c + ')';
+
             // Append this label to the label list.
-            classificationLabelList.push( x );
-            // Set currently selected.
-            if ( filterByClassification === classificationlist[i] ) 
-                filterByClassificationLabel = x;
+            if ( c > 0 || filterByClassification === classificationlist[i] ){
+                classificationLabelList.push( x );
+                classificationCountList.push( c );
+
+                // Set currently selected.
+                if ( filterByClassification === classificationlist[i] ) 
+                    filterByClassificationLabel = x;
+            }
         }
+
         return classificationLabelList;
     }
 
@@ -413,6 +426,7 @@ app.factory( 'Stones',
     this.getColorList = getColorList;
     this.getClassificationList = getClassificationList;
     this.getClassificationLabelList = getClassificationLabelList;
+    this.getClassificationCountList = getClassificationCountList;
     this.getStonelist = getStonelist;
 
     return this;
