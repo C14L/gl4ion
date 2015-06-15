@@ -1,5 +1,8 @@
 TODO
 
-Large screens should have four or more stones per row, so that the individual
-stone items are not too large.
+---- In the classification selector, hide all classification names that would match 0 stones under the currently selected color.
+
+---- Add more information to the stone item pages.
+
+DONE Large screens should have four or more stones per row, so that the individual stone items are not too large.
 
